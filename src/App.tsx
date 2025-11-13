@@ -1,4 +1,5 @@
-// src/App.tsx (KODE LENGKAP - Versi Rapor Guru
+// src/App.tsx (KODE LENGKAP - Versi Edit & Hapus Kelas)
+
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -178,7 +179,7 @@ function AuthForm() {
 }
 
 // ====================================================================
-// Komponen: ClassDashboard (Tidak Berubah)
+// Komponen: ClassDashboard (INI YANG DIMODIFIKASI)
 // ====================================================================
 function ClassDashboard({
   session,
@@ -193,6 +194,12 @@ function ClassDashboard({
   const [classes, setClasses] = useState<any[]>([]);
   const [className, setClassName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+
+  // --- STATE BARU UNTUK EDIT KELAS ---
+  const [editingClass, setEditingClass] = useState<any | null>(null);
+  const [newClassName, setNewClassName] = useState("");
+  // ------------------------------------
+
   const cardColors = [
     "bg-primary",
     "bg-secondary",
@@ -274,12 +281,59 @@ function ClassDashboard({
     }
   }
 
+  // --- FUNGSI BARU: HAPUS KELAS ---
+  async function deleteClass(classId: string) {
+    // Peringatan ini penting karena ON DELETE CASCADE akan menghapus SEMUA
+    if (
+      !confirm(
+        "ANDA YAKIN? Menghapus kelas ini akan menghapus SEMUA materi, tugas, dan anggota di dalamnya secara permanen."
+      )
+    )
+      return;
+
+    setLoading(true);
+    const { error } = await supabase.from("classes").delete().eq("id", classId);
+
+    if (error) {
+      alert("Gagal menghapus kelas: " + error.message);
+    } else {
+      alert("Kelas berhasil dihapus.");
+      setClasses(classes.filter((c) => c.id !== classId));
+    }
+    setLoading(false);
+  }
+
+  // --- FUNGSI BARU: EDIT NAMA KELAS ---
+  async function updateClass(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newClassName.trim() || !editingClass) return;
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("classes")
+      .update({ name: newClassName })
+      .eq("id", editingClass.id)
+      .select() // Ambil data yang sudah diupdate
+      .single(); // Ambil satu saja
+
+    if (error) {
+      alert("Gagal mengedit kelas: " + error.message);
+    } else if (data) {
+      alert("Kelas berhasil diupdate.");
+      setClasses(classes.map((c) => (c.id === data.id ? data : c)));
+      setEditingClass(null); // Tutup modal
+      setNewClassName("");
+    }
+    setLoading(false);
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
   }
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Navbar (Tidak Berubah) */}
       <div className="navbar bg-base-100 rounded-box shadow-lg mb-6">
         <div className="flex-1">
           <span className="text-xl font-bold ml-4">Dashboard Kelas</span>
@@ -300,6 +354,8 @@ function ClassDashboard({
           </button>
         </div>
       </div>
+
+      {/* Form Aksi (Tidak Berubah) */}
       <div className="card bg-base-100 shadow-xl mb-6">
         <div className="card-body">
           {userRole === "GURU" ? (
@@ -313,7 +369,11 @@ function ClassDashboard({
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
                 />
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                >
                   Buat
                 </button>
               </div>
@@ -329,7 +389,11 @@ function ClassDashboard({
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                 />
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                >
                   Gabung
                 </button>
               </div>
@@ -337,6 +401,8 @@ function ClassDashboard({
           )}
         </div>
       </div>
+
+      {/* Daftar Kelas (DIMODIFIKASI DENGAN TOMBOL EDIT/HAPUS) */}
       <h2 className="text-2xl font-semibold mb-4">Kelas Saya</h2>
       {loading && (
         <div className="text-center">
@@ -348,6 +414,7 @@ function ClassDashboard({
           Anda belum memiliki/bergabung dengan kelas apapun.
         </p>
       )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {classes.map((kelas, index) => {
           const colorClass = cardColors[index % cardColors.length];
@@ -355,7 +422,7 @@ function ClassDashboard({
           return (
             <div
               key={kelas.id}
-              className={`card ${colorClass} ${textClass}-content shadow-xl hover:shadow-2xl transition-shadow`}
+              className={`card ${colorClass} ${textClass}-content shadow-xl transition-shadow`}
             >
               <div className="card-body">
                 <h2 className="card-title">{kelas.name}</h2>
@@ -367,7 +434,28 @@ function ClassDashboard({
                     </span>
                   </p>
                 )}
-                <div className="card-actions justify-end">
+
+                {/* --- TOMBOL AKSI BARU --- */}
+                <div className="card-actions justify-end items-center">
+                  {userRole === "GURU" && (
+                    <div className="flex gap-1">
+                      <button
+                        className="btn btn-info btn-xs"
+                        onClick={() => {
+                          setEditingClass(kelas); // Buka modal
+                          setNewClassName(kelas.name); // Isi form
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-error btn-xs"
+                        onClick={() => deleteClass(kelas.id)}
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
                   <button
                     className="btn btn-secondary"
                     onClick={() => onSelectClass(kelas)}
@@ -380,12 +468,56 @@ function ClassDashboard({
           );
         })}
       </div>
+
+      {/* --- MODAL BARU UNTUK EDIT KELAS --- */}
+      {editingClass && (
+        <dialog id="edit_class_modal" className="modal modal-open">
+          <div className="modal-box w-11/12 max-w-lg">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+              onClick={() => {
+                setEditingClass(null);
+                setNewClassName("");
+              }}
+            >
+              ✕
+            </button>
+            <h3 className="font-bold text-lg mb-4">Edit Nama Kelas</h3>
+            <form onSubmit={updateClass}>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Nama Kelas Baru</span>
+                </label>
+                <input
+                  type="text"
+                  className="input input-bordered w-full"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="modal-action">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                >
+                  {loading && (
+                    <span className="loading loading-spinner text-xs"></span>
+                  )}
+                  Simpan
+                </button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+      )}
     </div>
   );
 }
 
 // ====================================================================
-// Komponen: ClassroomView (INI YANG DIMODIFIKASI BESAR)
+// Komponen: ClassroomView (Tidak Berubah)
 // ====================================================================
 function ClassroomView({
   session,
@@ -414,11 +546,11 @@ function ClassroomView({
 
   // States untuk Anggota
   const [members, setMembers] = useState<any[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(true); // Default-kan ke true
+  const [loadingMembers, setLoadingMembers] = useState(true);
 
   // States untuk Tugas
   const [assignments, setAssignments] = useState<any[]>([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true); // Default-kan ke true
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [newAssignmentTitle, setNewAssignmentTitle] = useState("");
   const [newAssignmentDesc, setNewAssignmentDesc] = useState("");
   const [newAssignmentDueDate, setNewAssignmentDueDate] = useState("");
@@ -433,22 +565,20 @@ function ClassroomView({
   );
   const [viewingMaterial, setViewingMaterial] = useState<any | null>(null);
 
-  // --- MODIFIKASI: useEffect sekarang memuat data dasar untuk semua tab ---
   useEffect(() => {
-    // Data ini dibutuhkan oleh hampir semua tab
     fetchMaterials(selectedClass.id);
     fetchAssignments(selectedClass.id);
     if (userRole === "GURU") {
       fetchClassMembers(selectedClass.id);
     }
-  }, [selectedClass.id, userRole]); // Hanya bergantung pada ini
+  }, [selectedClass.id, userRole]);
 
   // --- Fungsi Anggota (Tidak Berubah) ---
   async function fetchClassMembers(classId: string) {
     setLoadingMembers(true);
     const { data, error } = await supabase
       .from("class_members")
-      .select(`student_id, joined_at, users ( email )`)
+      .select(`student_id, joined_at, users:student_id ( email )`)
       .eq("class_id", classId);
     if (error) console.error("Error fetching members:", error);
     else setMembers(data || []);
@@ -491,7 +621,7 @@ function ClassroomView({
     setLoadingMaterials(true);
     const { data, error } = await supabase
       .from("materials")
-      .select("*, users ( email )")
+      .select(`*, users:user_id ( email )`)
       .eq("class_id", classId)
       .order("created_at", { ascending: false });
     if (error) console.error("Error fetching materials:", error);
@@ -723,10 +853,9 @@ function ClassroomView({
         </div>
       </div>
 
-      {/* Konten Utama (Dimodifikasi dengan Tab) */}
+      {/* Konten Utama (Tidak Berubah) */}
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
-          {/* --- NAVIGASI TAB DIMODIFIKASI (Tambah Progres) --- */}
           <div role="tablist" className="tabs tabs-boxed mb-6">
             <a
               role="tab"
@@ -760,7 +889,7 @@ function ClassroomView({
             )}
           </div>
 
-          {/* 1. Tampilan Tab Materi */}
+          {/* 1. Tampilan Tab Materi (Tidak Berubah) */}
           {activeTab === "materi" && (
             <div>
               {userRole === "GURU" && (
@@ -947,7 +1076,7 @@ function ClassroomView({
             </div>
           )}
 
-          {/* 2. Tampilan Tab Tugas */}
+          {/* 2. Tampilan Tab Tugas (Tidak Berubah) */}
           {activeTab === "tugas" && (
             <div>
               {userRole === "GURU" && (
@@ -1098,7 +1227,7 @@ function ClassroomView({
             </div>
           )}
 
-          {/* 3. Tampilan Tab Anggota */}
+          {/* 3. Tampilan Tab Anggota (Tidak Berubah) */}
           {activeTab === "anggota" && userRole === "GURU" && (
             <div>
               <h2 className="card-title mt-4">Daftar Anggota di Kelas Ini</h2>
@@ -1148,18 +1277,16 @@ function ClassroomView({
             </div>
           )}
 
-          {/* 4. Tampilan Tab Progres (BARU) */}
+          {/* 4. Tampilan Tab Progres (Tidak Berubah) */}
           {activeTab === "progres" && (
             <div>
               {userRole === "GURU" ? (
-                // TAMPILAN GURU BARU
                 <TeacherProgressViewComponent
                   classId={selectedClass.id}
-                  assignments={assignments} // Kirim daftar tugas yang sudah di-fetch
-                  members={members} // Kirim daftar anggota yang sudah di-fetch
+                  assignments={assignments}
+                  members={members}
                 />
               ) : (
-                // TAMPILAN SISWA (Yang lama, diganti nama)
                 <StudentProgressViewComponent
                   classId={selectedClass.id}
                   studentId={user.id}
@@ -1577,7 +1704,7 @@ function GradeViewComponent({
         <tbody>
           {memberSubmissions.map((ms) => (
             <tr key={ms.student_id}>
-              <td>{ms.student_email}</td>
+              <td>{ms.users?.email || "Email tidak diketahui"}</td>
               <td>
                 {ms.submission ? (
                   <span className="badge badge-success">
@@ -1668,7 +1795,7 @@ function MaterialDetailModal({
     setLoadingComments(true);
     const { data, error } = await supabase
       .from("comments")
-      .select("*, users ( email )")
+      .select("*, users:user_id ( email )")
       .eq("material_id", material.id)
       .order("created_at", { ascending: true });
     if (error) {
@@ -1976,7 +2103,10 @@ function TeacherProgressViewComponent({
               {/* Buat baris untuk setiap siswa */}
               {members.map((member) => (
                 <tr key={member.student_id}>
-                  <td className="font-semibold">{member.users.email}</td>
+                  {/* PERBAIKAN: Gunakan 'users.email' */}
+                  <td className="font-semibold">
+                    {member.users?.email || "Siswa Dihapus"}
+                  </td>
 
                   {/* Buat sel untuk setiap tugas */}
                   {assignments.map((assignment) => {
