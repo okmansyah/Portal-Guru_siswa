@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+k;
 
 // 1. KONFIGURASI SUPABASE (GANTI DENGAN KREDENSIAL ASLI ANDA)
 // 1. KONFIGURASI SUPABASE (Membaca dari Environment Variables)
