@@ -3,10 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // 1. KONFIGURASI SUPABASE (GANTI DENGAN KREDENSIAL ASLI ANDA)
-const SUPABASE_URL = "https://yijpduuhmgdjvwsoxlgn.supabase.co";
-const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpanBkdXVobWdkanZ3c294bGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2OTc2NDQsImV4cCI6MjA3ODI3MzY0NH0.KYpUzqIDfFm9-nc_bhdHozeFXUUOTxtSn5sRM3kTZNc"; // GANTI DENGAN KUNCI ANON ASLI ANDA
-
+// 1. KONFIGURASI SUPABASE (Membaca dari Environment Variables)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ====================================================================
